@@ -13,6 +13,7 @@ class model_baseline(nn.Module):
 
     def __init__(self, base_model):
         super(model_baseline, self).__init__()
+        self.conv1 = nn.Conv2d(1, 3, 3, padding=1, bias=False)
         self.fcn = nn.Sequential(*list(base_model.children())[:-2]) ##-2
         self.GAvgPool = nn.AvgPool2d(kernel_size=14)
 
@@ -23,6 +24,7 @@ class model_baseline(nn.Module):
         )
 
     def forward(self, x):
+        x = self.conv1(x)
         x = self.fcn(x)
         x = self.GAvgPool(x)
         x = x.view(x.size(0), x.size(1))

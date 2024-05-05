@@ -8,8 +8,10 @@ import torchvision
 import torchvision.transforms as transforms
 import os
 import random
-from data_LDL import Emotion_LDL
-from models import *
+# from data_LDL import Emotion_LDL
+from dataloader_customize import EmoData
+# from models import *
+from model_baseline import model_baseline
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -21,11 +23,11 @@ import numpy as np
 from torchvision import models
 from tensorboardX import SummaryWriter
 # from models.TL import Triplet
-from models.CE_loss_softmax import CELoss_softmax
-from models.MSE_loss_theta import MSE_Loss_theta
-from models.Polarloss import PolarLoss
+# from models.CE_loss_softmax import CELoss_softmax
+from MSE_loss_theta import MSE_Loss_theta
+from Polarloss import PolarLoss
 # from models.CE_loss_weighed import CELoss_weighed
-from models.polar_coordinates import Polar_coordinates
+from polar_coordinates import Polar_coordinates
 from evaluation_metric import Evaluation_metrics
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -46,11 +48,11 @@ def main():
     parser = argparse.ArgumentParser(description='PyTorch Emotion_LDL CNN Training')
     parser.add_argument('--img_path', type=str, default='/home/yjy/Dataset/Emotion_LDL/Twitter_LDL/images/')
     parser.add_argument('--train_csv_file', type=str,
-                        default='/home/yjy/Dataset/Emotion_LDL/Twitter_LDL/csv_6/annotations_train.csv')
+                        default='./dataset/UnBiasedEmo/train/train.csv')
     # FLICKR csv_7 TWITTER csv_6
     parser.add_argument('--test_csv_file', type=str,
-                        default='/home/yjy/Dataset/Emotion_LDL/Twitter_LDL/csv_6/annotations_test.csv')
-    parser.add_argument('--ckpt_path', type=str, default='/home/yjy/Code/DistNet/ckpts_twi_kl_p')
+                        default='./dataset/UnBiasedEmo/test/test.csv')
+    parser.add_argument('--ckpt_path', type=str, default='./ckpt')
     parser.add_argument('--model', type=str, default='ResNet_50', help='CNN architecture')
     parser.add_argument('--dataset', type=str, default='Emotion_LDL', help='Dataset')
     parser.add_argument('--batch_size', default=16, type=int, help='batch size')
@@ -86,7 +88,7 @@ def main():
     learning_rate_decay_every = opt.every
     learning_rate_decay_rate = opt.decay
 
-    total_epoch = 55
+    total_epoch = 25
 
     path = os.path.join(opt.dataset + '_' + opt.model)
 
@@ -94,24 +96,26 @@ def main():
     print('==> Preparing data..')
 
     transform_train = transforms.Compose([
+        transforms.ToTensor(),
         transforms.Resize(480),  # resize the short side to 480, and resize the long side proportionally
         transforms.RandomCrop(448),  # different from resize, randomcrop will crop a square of 448*448, disproportionally
         transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+        #                      std=[0.229, 0.224, 0.225])
     ])
 
     transform_test = transforms.Compose([
+            transforms.ToTensor(),
             transforms.Resize(480),
             transforms.RandomCrop(448),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])
         ])
 
-    trainset = Emotion_LDL(csv_file=opt.train_csv_file, root_dir=opt.img_path, transform=transform_train)
-    testset= Emotion_LDL(csv_file=opt.test_csv_file, root_dir=opt.img_path, transform=transform_test)
+    # trainset = Emotion_LDL(csv_file=opt.train_csv_file, root_dir=opt.img_path, transform=transform_train)
+    # testset= Emotion_LDL(csv_file=opt.test_csv_file, root_dir=opt.img_path, transform=transform_test)
+    trainset = EmoData(csv_file=opt.train_csv_file, transform=transform_train)
+    testset = EmoData(csv_file=opt.test_csv_file, transform=transform_test)
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=opt.batch_size, shuffle=True, num_workers=8)
     testloader = torch.utils.data.DataLoader(testset, batch_size=opt.batch_size, shuffle=False, num_workers=8)
@@ -228,7 +232,7 @@ def train(epoch, opt, net, writer, trainloader, optimizer, KLloss, MSEloss, Pola
 
     for batch_idx, data in enumerate(trainloader):
         images = data['image']
-        image_name = data['img_id']
+        # image_name = data['img_id']
         dist_emo = data['dist_emo']
 
         if torch.cuda.is_available():

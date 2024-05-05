@@ -1,3 +1,7 @@
 /data/UnBiasedEmo/*
 /data/fer2013.csv
 /dataset/*
+/runs/
+/Emotion_*/
+/__pycache__/
+/ckpt/

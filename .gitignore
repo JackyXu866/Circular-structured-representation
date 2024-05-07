@@ -1,5 +1,5 @@
-/data/UnBiasedEmo/*
-/data/fer2013.csv
+data
+!/data/README.md
 /dataset/*
 /runs/
 /Emotion_*/

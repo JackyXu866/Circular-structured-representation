@@ -51,14 +51,14 @@ def main():
     parser = argparse.ArgumentParser(description='PyTorch Emotion_LDL CNN Training')
     parser.add_argument('--img_path', type=str, default='/home/yjy/Dataset/Emotion_LDL/Twitter_LDL/images/')
     parser.add_argument('--source_train_csv_file', type=str,
-                        default='./dataset/UnBiasedEmo/train/train.csv')
+                        default='./dataset/fer2013/train/train.csv')
     parser.add_argument('--target_train_csv_file', type=str,
-                        default='./dataset/UnBiasedEmo/val/val.csv')
+                        default='./dataset/facialRecon/train/train.csv')
     # FLICKR csv_7 TWITTER csv_6
     parser.add_argument('--source_test_csv_file', type=str,
-                        default='./dataset/UnBiasedEmo/test/test.csv')
+                        default='./dataset/fer2013/test/test.csv')
     parser.add_argument('--target_test_csv_file', type=str,
-                        default='./dataset/UnBiasedEmo/test/test.csv')
+                        default='./dataset/facialRecon/test/test.csv')
     parser.add_argument('--ckpt_path', type=str, default='./ckpt_da')
     parser.add_argument('--model', type=str, default='ResNet_50', help='CNN architecture')
     parser.add_argument('--dataset', type=str, default='Emotion_LDL', help='Dataset')
@@ -250,14 +250,15 @@ def train(epoch, opt, net, writer, source_trainloader, target_trainloader, optim
 
         # training model using source data
         data_source = next(data_source_iter)
-        s_img, s_label = data_source
+        s_img = data_source['image']
+        s_label = data_source['dist_emo']
 
         net.zero_grad()
         batch_size = len(s_label)
         
-        print(s_img)
+        # print(s_img.shape[2], s_img.shape[3], s_img.shape[1])
 
-        input_img = torch.FloatTensor(batch_size, 3, s_img.shape[2], s_img.shape[3])
+        input_img = torch.FloatTensor(batch_size, s_img.shape[1], s_img.shape[2], s_img.shape[3])
         class_label = torch.LongTensor(batch_size)
         domain_label = torch.zeros(batch_size)
         domain_label = domain_label.long()
@@ -278,11 +279,11 @@ def train(epoch, opt, net, writer, source_trainloader, target_trainloader, optim
 
         # training model using target data
         data_target = data_target_iter.next()
-        t_img, _ = data_target
+        t_img = data_target["image"]
 
         batch_size = len(t_img)
 
-        input_img = torch.FloatTensor(batch_size, 3, t_img.shape[2], t_img.shape[3])
+        input_img = torch.FloatTensor(batch_size, t_img.shape[1], t_img.shape[2], t_img.shape[3])
         domain_label = torch.ones(batch_size)
         domain_label = domain_label.long()
 
@@ -445,11 +446,12 @@ def test(epoch, net, writer, testloader, KLloss, best_test_acc, best_test_acc_ep
 
         # test model using target data
         data_target = data_target_iter.next()
-        t_img, t_label = data_target
+        t_img = data_target['image']
+        t_label = data_target['dist_emo']
 
         batch_size = len(t_label)
 
-        input_img = torch.FloatTensor(batch_size, 3, t_img.shape([2]), t_img.shape[3])
+        input_img = torch.FloatTensor(batch_size, t_img.shape[1], t_img.shape[2], t_img.shape[3])
         class_label = torch.LongTensor(batch_size)
 
         if cuda:

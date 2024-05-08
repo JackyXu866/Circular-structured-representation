@@ -48,13 +48,13 @@ def main():
     parser = argparse.ArgumentParser(description='PyTorch Emotion_LDL CNN Training')
     parser.add_argument('--img_path', type=str, default='/home/yjy/Dataset/Emotion_LDL/Twitter_LDL/images/')
     parser.add_argument('--train_csv_file', type=str,
-                        default='./dataset/UnBiasedEmo/train/train.csv')
+                        default='./dataset/fer2013/train/train.csv')
     # FLICKR csv_7 TWITTER csv_6
     parser.add_argument('--test_csv_file', type=str,
-                        default='./dataset/UnBiasedEmo/test/test.csv')
+                        default='./dataset/fer2013/test/test.csv')
     parser.add_argument('--ckpt_path', type=str, default='./ckpt')
     parser.add_argument('--model', type=str, default='ResNet_50', help='CNN architecture')
-    parser.add_argument('--dataset', type=str, default='Emotion_LDL', help='Dataset')
+    parser.add_argument('--dataset', type=str, default='fer2013', help='Dataset')
     parser.add_argument('--batch_size', default=16, type=int, help='batch size')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkposint')
 
@@ -97,8 +97,8 @@ def main():
 
     transform_train = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Resize(480),  # resize the short side to 480, and resize the long side proportionally
-        transforms.RandomCrop(448),  # different from resize, randomcrop will crop a square of 448*448, disproportionally
+        transforms.Resize(240),  # resize the short side to 480, and resize the long side proportionally
+        transforms.RandomCrop(224),  # different from resize, randomcrop will crop a square of 448*448, disproportionally
         transforms.RandomHorizontalFlip(),
         # transforms.Normalize(mean=[0.485, 0.456, 0.406],
         #                      std=[0.229, 0.224, 0.225])
@@ -106,8 +106,8 @@ def main():
 
     transform_test = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Resize(480),
-            transforms.RandomCrop(448),
+            transforms.Resize(240),
+            transforms.RandomCrop(224),
             # transforms.Normalize(mean=[0.485, 0.456, 0.406],
             #                      std=[0.229, 0.224, 0.225])
         ])
@@ -253,9 +253,9 @@ def train(epoch, opt, net, writer, trainloader, optimizer, KLloss, MSEloss, Pola
         loss2 = MSELoss_theta(theta_emo, theta_dist_emo, r_dist_emo)
         # loss3 = MSEloss(r_emo, r_dist_emo)
         loss3 = Polarloss(theta_emo, theta_dist_emo, r_dist_emo)
-        # loss = loss1 + loss2 ##################
+        loss = loss1 + loss2 ##################
         # loss = loss1 + loss3 ##############
-        loss = loss1 ##############
+        # loss = loss1 ##############
 
         loss.backward()
         # loss.backward(loss.clone().detach())
@@ -351,7 +351,8 @@ def test(epoch, net, writer, testloader, KLloss, best_test_acc, best_test_acc_ep
             loss3 = Polarloss(theta_emo, theta_dist_emo, r_dist_emo)
             # loss = loss1 + loss2 #############
             # loss = loss1 + loss3  ##############
-            loss = loss1 ###########
+            loss = loss2 ###########
+            # loss = loss1 + loss2 + loss3
 
             test_loss1 += loss1.item()
             test_loss2 += loss2.item()

@@ -15,7 +15,7 @@ class model_baseline(nn.Module):
         super(model_baseline, self).__init__()
         self.conv1 = nn.Conv2d(1, 3, 3, padding=1, bias=False)
         self.fcn = nn.Sequential(*list(base_model.children())[:-2]) ##-2
-        self.GAvgPool = nn.AvgPool2d(kernel_size=14)
+        self.GAvgPool = nn.AvgPool2d(kernel_size=5)
 
         # classifier
         self.classifier8 = nn.Sequential(

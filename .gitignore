@@ -5,3 +5,6 @@ data
 /Emotion_*/
 /__pycache__/
 /ckpt/
+/fer2013_*/
+/facialRecon_*/
+/da

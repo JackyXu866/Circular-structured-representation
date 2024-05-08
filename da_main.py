@@ -1,7 +1,7 @@
 # This code is written by Jingyuan Yang @ XD
 
 """Train Emotion_LDL with Pytorch"""
-
+import pdb
 import torch
 import argparse
 import torchvision
@@ -83,7 +83,7 @@ def main():
 
     set_seed(seed=opt.seed)
 
-    writer = SummaryWriter()
+    # writer = SummaryWriter()
 
     best_test_acc = 0
     best_test_acc_epoch = 0
@@ -104,28 +104,28 @@ def main():
 
     transform_train_source = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Resize(48),  # resize the short side to 480, and resize the long side proportionally
-        transforms.RandomCrop(48),  # different from resize, randomcrop will crop a square of 448*448, disproportionally
+        transforms.Resize(240),  # resize the short side to 480, and resize the long side proportionally
+        transforms.RandomCrop(224),  # different from resize, randomcrop will crop a square of 448*448, disproportionally
         transforms.RandomHorizontalFlip(),
     ])
 
     transform_test_source = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Resize(48),
-            transforms.RandomCrop(48),
+            transforms.Resize(240),
+            transforms.RandomCrop(224),
         ])
     
     transform_train_target = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Resize(48),  # resize the short side to 480, and resize the long side proportionally
-        transforms.RandomCrop(48),  # different from resize, randomcrop will crop a square of 448*448, disproportionally
+        transforms.Resize(240),  # resize the short side to 480, and resize the long side proportionally
+        transforms.RandomCrop(224),  # different from resize, randomcrop will crop a square of 448*448, disproportionally
         transforms.RandomHorizontalFlip(),
     ])
 
     transform_test_target = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Resize(48),
-            transforms.RandomCrop(48),
+            transforms.Resize(240),
+            transforms.RandomCrop(224),
         ])
 
     # trainset = Emotion_LDL(csv_file=opt.train_csv_file, root_dir=opt.img_path, transform=transform_train)
@@ -189,6 +189,8 @@ def main():
         CEloss = CEloss.cuda()
         MSEloss = MSEloss.cuda()
         KLloss = KLloss.cuda()
+        loss_domain = loss_domain.cuda()
+        loss_class = loss_class.cuda()
 
     if opt.optimizer == 'adam':
         optimizer = optim.Adam(net.parameters(), lr=opt.lr_adam, weight_decay=opt.wd)
@@ -204,8 +206,8 @@ def main():
         print(epoch)
         # set_seed(seed=opt.seed)
         # train(epoch, opt, net, writer, trainloader, optimizer, KLloss, MSEloss, Polar_coordinates, MSELoss_theta, Polarloss)
-        train(epoch, opt, net, writer, source_trainloader, target_trainloader, optimizer, loss_class, loss_domain, KLloss, MSEloss, Polar_coordinates, MSELoss_theta, Polarloss, total_epoch= 50)
-        test(epoch, net, writer, target_testloader, KLloss, best_test_acc,
+        train(epoch, opt, net, source_trainloader, target_trainloader, optimizer, loss_class, loss_domain, KLloss, MSEloss, Polar_coordinates, MSELoss_theta, Polarloss, total_epoch= 50)
+        test(epoch, net, target_testloader, KLloss, best_test_acc,
                                                   best_test_acc_epoch, path, MSEloss, Polar_coordinates, MSELoss_theta, Polarloss)
         
 
@@ -218,7 +220,7 @@ def l2norm(X):
 
 
 # Training
-def train(epoch, opt, net, writer, source_trainloader, target_trainloader, optimizer, loss_class, loss_domain, KLloss, MSEloss, Polar_coordinates, MSELoss_theta, Polarloss, total_epoch= 50):
+def train(epoch, opt, net, source_trainloader, target_trainloader, optimizer, loss_class, loss_domain, KLloss, MSEloss, Polar_coordinates, MSELoss_theta, Polarloss, total_epoch= 50):
     # set_seed(seed=opt.seed)
     print('\nEpoch: %d' % epoch)
     global train_acc
@@ -250,15 +252,14 @@ def train(epoch, opt, net, writer, source_trainloader, target_trainloader, optim
 
         # training model using source data
         data_source = next(data_source_iter)
-        s_img = data_source['image']
-        s_label = data_source['dist_emo']
+        s_img, s_label = data_source['image'], data_source['dist_emo']
 
         net.zero_grad()
         batch_size = len(s_label)
         
-        # print(s_img.shape[2], s_img.shape[3], s_img.shape[1])
+        # print(s_img)
 
-        input_img = torch.FloatTensor(batch_size, s_img.shape[1], s_img.shape[2], s_img.shape[3])
+        input_img = torch.FloatTensor(batch_size, 1, s_img.shape[2], s_img.shape[3])
         class_label = torch.LongTensor(batch_size)
         domain_label = torch.zeros(batch_size)
         domain_label = domain_label.long()
@@ -274,16 +275,17 @@ def train(epoch, opt, net, writer, source_trainloader, target_trainloader, optim
         class_label.resize_as_(s_label).copy_(s_label)
 
         class_output, domain_output = net(input_data=input_img, alpha=alpha)
-        err_s_label = loss_class(class_output, class_label)
+        # print(class_output.shape, class_label.shape)
+        err_s_label = MSEloss(class_output, class_label.float())
         err_s_domain = loss_domain(domain_output, domain_label)
 
         # training model using target data
-        data_target = data_target_iter.next()
-        t_img = data_target["image"]
+        data_target = next(data_target_iter)
+        t_img = data_target['image']
 
         batch_size = len(t_img)
 
-        input_img = torch.FloatTensor(batch_size, t_img.shape[1], t_img.shape[2], t_img.shape[3])
+        input_img = torch.FloatTensor(batch_size, 1, t_img.shape[2], t_img.shape[3])
         domain_label = torch.ones(batch_size)
         domain_label = domain_label.long()
 
@@ -295,16 +297,16 @@ def train(epoch, opt, net, writer, source_trainloader, target_trainloader, optim
         input_img.resize_as_(t_img).copy_(t_img)
         _, domain_output = net(input_data=input_img, alpha=alpha)
         err_t_domain = loss_domain(domain_output, domain_label)
-        err = err_t_domain + err_s_domain + err_s_label
+        err = err_t_domain  + err_s_domain + err_s_label
         err.backward()
         optimizer.step()
 
         i += 1
 
-        print (epoch, i, len_dataloader, err_s_label.cpu().data.numpy(),
-                 err_s_domain.cpu().data.numpy(), err_t_domain.cpu().data.numpy())
+        # print (epoch, i, len_dataloader, err_s_label.cpu().data.numpy(),
+        #          err_s_domain.cpu().data.numpy(), err_t_domain.cpu().data.numpy())
 
-    torch.save(net, './da_model_epoch_{0}.pth'.format(epoch))
+    torch.save(net, './da/da_model_epoch_{0}.pth'.format(epoch))
 
 
    ################################################################## # 
@@ -412,7 +414,7 @@ def train(epoch, opt, net, writer, source_trainloader, target_trainloader, optim
 
 
 
-def test(epoch, net, writer, testloader, KLloss, best_test_acc, best_test_acc_epoch, path, MSEloss, Polar_coordinates, MSELoss_theta, Polarloss):
+def test(epoch, net, testloader, KLloss, best_test_acc, best_test_acc_epoch, path, MSEloss, Polar_coordinates, MSELoss_theta, Polarloss):
     # set_seed(seed=opt.seed)
     global test_acc
     # global best_test_acc
@@ -445,13 +447,12 @@ def test(epoch, net, writer, testloader, KLloss, best_test_acc, best_test_acc_ep
     while i < len_dataloader:
 
         # test model using target data
-        data_target = data_target_iter.next()
-        t_img = data_target['image']
-        t_label = data_target['dist_emo']
+        data_target = next(data_target_iter)
+        t_img, t_label = data_target['image'], data_target['dist_emo']
 
         batch_size = len(t_label)
 
-        input_img = torch.FloatTensor(batch_size, t_img.shape[1], t_img.shape[2], t_img.shape[3])
+        input_img = torch.FloatTensor(batch_size, 1, t_img.shape[2], t_img.shape[3])
         class_label = torch.LongTensor(batch_size)
 
         if cuda:
@@ -465,7 +466,8 @@ def test(epoch, net, writer, testloader, KLloss, best_test_acc, best_test_acc_ep
 
         class_output, _ = net(input_data=input_img, alpha=alpha)
         pred = class_output.data.max(1, keepdim=True)[1]
-        n_correct += pred.eq(class_label.data.view_as(pred)).cpu().sum()
+        # pdb.set_trace()
+        n_correct += pred.eq(torch.argmax(class_label, dim=1).data.view_as(pred)).cpu().sum()
         n_total += batch_size
 
         i += 1
